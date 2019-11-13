@@ -2,7 +2,7 @@
 
 [Install & Run](http://docs.redisdesktop.com/en/latest/install/) | 
 [Quick Start](http://docs.redisdesktop.com/en/latest/quick-start/) |
-[Features](http://docs.redisdesktop.com/en/latest/features/) |
+[Native Formatters](http://docs.redisdesktop.com/en/latest/native-formatters/) |
 [Development Guide](http://docs.redisdesktop.com/en/latest/development/) |
 [Known issues](http://docs.redisdesktop.com/en/latest/known-issues/) |
 [**Telegram Chat**](https://t.me/RedisDesktopManager)
@@ -15,10 +15,8 @@
 
 Open source cross-platform Redis Desktop Manager based on Qt 5
 
-![Redis Desktop Manager screenshoot](http://redisdesktop.com/static/img/features/all.png?v2)
+![Redis Desktop Manager screenshoot](http://redisdesktop.com/static/img/features/all.png?v2019)
 
 **Officially Supported platforms**: Windows 10, Mac OS X 10.14, [Linux](https://snapcraft.io/redis-desktop-manager)
-
-**Community Supported platforms**: [Arch Linux](https://aur.archlinux.org/packages/redis-desktop-manager/)
 
 **Supported Redis versions**: 2.8+ (for old redis-servers use [RedisDesktopManager 0.8.8](https://github.com/uglide/RedisDesktopManager/releases/tag/0.8.8))

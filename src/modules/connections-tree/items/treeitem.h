@@ -35,7 +35,7 @@ class TreeItem {
 
   virtual QSharedPointer<TreeItem> child(uint row) const = 0;
 
-  virtual QWeakPointer<TreeItem> parent() const = 0;
+  virtual QWeakPointer<TreeItem> parent() const { return QWeakPointer<TreeItem>(); }
 
   virtual bool supportChildItems() const { return true; }
 
@@ -74,7 +74,7 @@ class TreeItem {
   Model& m_model;  
   QWeakPointer<TreeItem> m_selfPtr;
   bool m_locked;
-  QFuture<bool> m_currentOperation;
+  QFuture<void> m_currentOperation;
 };
 
 typedef QList<QSharedPointer<TreeItem>> TreeItems;

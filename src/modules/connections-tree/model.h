@@ -11,6 +11,7 @@
 namespace ConnectionsTree {
 
 class ServerItem;
+class AbstractNamespaceItem;
 
 class Model : public QAbstractItemModel {
   Q_OBJECT
@@ -80,6 +81,10 @@ class Model : public QAbstractItemModel {
 
   void expandItem(QWeakPointer<TreeItem> item);
 
+  void beforeItemLayoutChanged(QWeakPointer<TreeItem> item);
+
+  void itemLayoutChanged(QWeakPointer<TreeItem> item);
+
  protected slots:
   void onItemChanged(QWeakPointer<TreeItem>);
 
@@ -88,6 +93,10 @@ class Model : public QAbstractItemModel {
   void onItemChildsUnloaded(QWeakPointer<TreeItem> item);
 
   void onExpandItem(QWeakPointer<TreeItem> item);
+
+  void onBeforeItemLayoutChanged(QWeakPointer<TreeItem> item);
+
+  void onItemLayoutChanged(QWeakPointer<TreeItem> item);
 
  public slots:
   QVariant getMetadata(const QModelIndex &index, const QString &metaKey);
@@ -106,12 +115,13 @@ class Model : public QAbstractItemModel {
  protected:
   void addRootItem(QSharedPointer<ServerItem> item);
 
-  void removeRootItem(QSharedPointer<ServerItem> item);
+  void removeRootItem(QSharedPointer<ServerItem> item);  
 
-  void restoreOpenedNamespaces(const QModelIndex &dbIndex);
+  void restoreOpenedNamespaces(QSharedPointer<AbstractNamespaceItem> ns);
 
  private:
   QList<QSharedPointer<TreeItem>> m_treeItems;
   QSharedPointer<QHash<TreeItem *, QWeakPointer<TreeItem>>> m_rawPointers;
+  QHash<QSharedPointer<TreeItem>, QModelIndex> m_pendingChanges;
 };
 }  // namespace ConnectionsTree

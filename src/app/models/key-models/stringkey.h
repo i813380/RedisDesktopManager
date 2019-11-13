@@ -17,9 +17,15 @@ class StringKeyModel : public KeyModel<QByteArray> {
   void loadRows(QVariant, unsigned long, LoadRowsCallback callback) override;
   void removeRow(int, Callback c) override;
 
+  virtual unsigned long rowsCount() override {
+      return m_rowCount;
+  }
+
  protected:
-  void addLoadedRowsToCache(const QVariantList&, QVariant) override {}
+  int addLoadedRowsToCache(const QVariantList&, QVariant) override { return 1; }
 
  private:
   enum Roles { Value = Qt::UserRole + 1 };
+
+  QString m_type;
 };

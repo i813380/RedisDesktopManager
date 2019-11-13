@@ -5,6 +5,7 @@ import QtQuick.Controls.Styles 1.1
 import QtQuick.Dialogs 1.2
 import QtQuick.Window 2.2
 import "./editors/editor.js" as Editor
+import "./../common/platformutils.js" as PlatformUtils
 import "./../common"
 import rdm.models 1.0
 
@@ -70,6 +71,13 @@ Repeater {
                 filterSyntax: SortFilterProxyModel.Wildcard
                 filterCaseSensitivity: Qt.CaseInsensitive
                 filterRole: keyTab.keyModel ? table.getColumn(1).role : ""
+
+                Component.onCompleted:  {
+                    if (keyTab.keyModel && keyTab.keyModel.singlePageMode) {
+                        // NOTE(u_glide): disable live search in all values
+                        filterString = table.searchField.text
+                    }
+                }
             }
         }
 
@@ -165,8 +173,8 @@ Repeater {
 
                     Item { visible: isMultiRow; Layout.preferredWidth: 5}
                     Text {
-                        visible: isMultiRow;
-                        text:  qsTranslate("RDM","Size: ") + (keyTab.keyModel? keyTab.keyModel.totalRowCount : "0")
+                        visible: isMultiRow || keyType === "hyperloglog";
+                        text:  qsTranslate("RDM","Size: ") + keyRowsCount
                     }
                     Item { Layout.preferredWidth: 5}
 
@@ -280,7 +288,7 @@ Repeater {
 
                             model: searchModel ? searchModel : null
 
-                            property int currentStart: 0
+                            property var currentStart: 0
                             property int maxItemsOnPage: keyTab.keyModel ? keyTab.keyModel.pageSize : 100
                             property int currentPage: currentStart / maxItemsOnPage + 1
                             property int totalPages: keyTab.keyModel ? Math.ceil(keyTab.keyModel.totalRowCount / maxItemsOnPage) : 0
@@ -432,7 +440,7 @@ Repeater {
 
                             Button {
                                 Layout.preferredWidth: 195
-                                text: qsTranslate("RDM","Add Row");
+                                text: qsTranslate("RDM","Add Row")
                                 iconSource: "qrc:/images/add.svg"
                                 onClicked: {
                                     addRowDialog.open()
@@ -440,58 +448,73 @@ Repeater {
 
                                 Dialog {
                                     id: addRowDialog
-                                    title: qsTranslate("RDM","Add Row")
+                                    title: keyType === "hyperloglog"? qsTranslate("RDM","Add Element to HLL")
+                                                                    : qsTranslate("RDM","Add Row")
 
                                     width: 550
                                     height: 400
                                     modality: Qt.ApplicationModal
 
-                                    Loader {
-                                        id: valueAddEditor
-                                        width: 500
-                                        height: 350
-                                        anchors.centerIn: parent
-                                        property int currentRow: -1
-                                        objectName: "rdm_add_row_dialog"
+                                    contentItem: Rectangle {
+                                        implicitWidth: 800
+                                        implicitHeight: PlatformUtils.isOSX()? 680 : 600
 
-                                        source: Editor.getEditorByTypeString(keyType)
+                                        ColumnLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 10
 
-                                        onLoaded: {
-                                            item.state = "add"
-                                            item.initEmpty()
-                                        }
-                                    }
+                                            Loader {
+                                                id: valueAddEditor
 
-                                    Timer {
-                                        id: reOpenTimer
-                                        onTriggered: {
-                                            addRowDialog.open()
-                                        }
-                                        repeat: false
-                                        interval: 50
-                                    }
+                                                Layout.fillWidth: true
+                                                Layout.fillHeight: true
 
-                                    onAccepted: {
-                                        if (!valueAddEditor.item)
-                                            return false
+                                                property int currentRow: -1
+                                                objectName: "rdm_add_row_dialog"
 
-                                        valueAddEditor.item.validateValue(function (result){
-                                            if (!result) {
-                                                reOpenTimer.start();
-                                                return;
+                                                source: Editor.getEditorByTypeString(keyType)
+
+                                                onLoaded: {
+                                                    item.state = "add"
+                                                    item.initEmpty()
+                                                }
                                             }
 
-                                            var row = valueAddEditor.item.getValue()                                            
+                                            RowLayout {
+                                                Layout.fillWidth: true
 
-                                            keyTab.keyModel.addRow(row)
-                                            keyTab.keyModel.reload()
-                                            valueAddEditor.item.reset()
-                                            valueAddEditor.item.initEmpty()
-                                        });
+                                                Item {
+                                                    Layout.fillWidth: true
+                                                }
+
+                                                Button {
+                                                    objectName: "rdb_add_row_dialog_add_button"
+                                                    text: qsTranslate("RDM","Add")
+
+                                                    onClicked: {
+                                                        if (!valueAddEditor.item)
+                                                            return false
+
+                                                        valueAddEditor.item.validateValue(function (result){
+                                                            if (!result) {
+                                                                return;
+                                                            }
+
+                                                            var row = valueAddEditor.item.getValue()
+
+                                                            keyTab.keyModel.addRow(row)
+                                                            keyTab.keyModel.reload()                                                            
+                                                            valueAddEditor.item.reset()
+                                                            valueAddEditor.item.initEmpty()
+                                                            addRowDialog.close()
+                                                        });
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
 
                                     visible: false
-                                    standardButtons: StandardButton.Ok | StandardButton.Cancel
                                 }
                             }
 
@@ -556,14 +579,48 @@ Repeater {
                                 }
                             }
 
-                            TextField {
-                                id: searchField
+                            RowLayout {
+                                Layout.preferredWidth: 195
+
+                                TextField {
+                                    id: searchField
+
+                                    Layout.fillWidth: true
+
+                                    readOnly: keyTab.keyModel.singlePageMode
+                                    placeholderText: qsTranslate("RDM","Search on page...")
+
+                                    Component.onCompleted: {
+                                        table.searchField = searchField
+                                    }
+                                }
+
+                                Button {
+                                    id: clearGlobalSearch
+                                    visible: keyTab.keyModel.singlePageMode
+
+                                    iconSource: "qrc:/images/clear.svg"
+
+                                    onClicked: {
+                                        wrapper.showLoader()
+                                        searchField.text = ""
+                                        keyTab.keyModel.singlePageMode = false
+                                        reLoadAction.trigger()
+                                    }
+                                }
+                            }
+
+                            Button {
+                                id: globalSearch
 
                                 Layout.preferredWidth: 195
-                                placeholderText: qsTranslate("RDM","Search on page...")
+                                iconSource: "qrc:/images/execute.svg"
+                                text: qsTranslate("RDM","Search through All values")
 
-                                Component.onCompleted: {
-                                    table.searchField = searchField
+                                onClicked: {
+                                    wrapper.showLoader()
+                                    keyTab.keyModel.singlePageMode = true
+                                    keyTab.keyModel.loadRows(0, keyTab.keyModel.totalRowCount)
                                 }
                             }
 
@@ -636,8 +693,21 @@ Repeater {
                             Layout.fillWidth: true
                             Layout.minimumHeight: 40
                             Item { Layout.fillWidth: true}
+
+                            Button {
+                                visible: keyType === "hyperloglog"
+                                Layout.preferredWidth: 195
+                                text: qsTranslate("RDM","Add Element to HLL");
+                                iconSource: "qrc:/images/add.svg"
+                                onClicked: {
+                                    addRowDialog.open()
+                                }
+                            }
+
                             Button {
                                 text: qsTranslate("RDM","Save")
+
+                                enabled: keyType != "stream"
 
                                 onClicked: {
                                     if (!valueEditor.item || !valueEditor.item.isEdited()) {

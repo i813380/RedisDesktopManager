@@ -12,10 +12,12 @@ Dialog {
     id: root
     title: qsTranslate("RDM","Settings")
 
+    property bool restartRequired: false
+
     contentItem: Rectangle {
         id: dialogRoot
         implicitWidth: 800
-        implicitHeight: PlatformUtils.isOSX()? 680 : approot.height
+        implicitHeight: PlatformUtils.isOSX()? 500 : 600
 
         border.color: "#eeeeee"
         border.width: 1
@@ -28,10 +30,11 @@ Dialog {
                 id: globalSettingsScrollView
                 width: parent.width
                 height: parent.height
+                horizontalScrollBarPolicy: Qt.ScrollBarAlwaysOff
 
                 ColumnLayout {
                     id: innerLayout
-                    width: globalSettingsScrollView.width - 20
+                    width: globalSettingsScrollView.width - 25
                     height: (dialogRoot.height - 50 > implicitHeight) ? dialogRoot.height - 50 : implicitHeight
 
                     SettingsGroupTitle {
@@ -44,10 +47,12 @@ Dialog {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 40
 
-                        model: ["system", "en_US", "zh_CN", "zh_TW", "ru_RU", "es_ES"]
+                        model: ["system", "en_US", "zh_CN", "zh_TW", "ru_RU", "es_ES", "ja_JP"]
                         value: "system"
                         label: qsTranslate("RDM","Language")
-                        description: qsTranslate("RDM","Application restart is needed to apply this setting.")
+                        description: qsTranslate("RDM","Application will be restarted to apply this setting.")
+
+                        onValueChanged: root.restartRequired = true
                     }
 
                     ComboboxOption {
@@ -59,7 +64,9 @@ Dialog {
                         value: Qt.platform.os == "osx"? "Helvetica Neue" : "Open Sans"
                         model: Qt.fontFamilies()
                         label: qsTranslate("RDM","Font")
-                        description: qsTranslate("RDM","Application restart is needed to apply this setting.")
+                        description: qsTranslate("RDM","Application will be restarted to apply this setting.")
+
+                        onValueChanged: root.restartRequired = true
                     }
 
                     ComboboxOption {
@@ -71,7 +78,9 @@ Dialog {
                         model: ["8", "9", "10", "11", "12"]
                         value: Qt.platform.os == "osx"? "12" : "11"
                         label: qsTranslate("RDM","Font Size")
-                        description: qsTranslate("RDM","Application restart is needed to apply this setting.")
+                        description: qsTranslate("RDM","Application will be restarted to apply this setting.")
+
+                        onValueChanged: root.restartRequired = true
                     }
 
                     BoolOption {
@@ -82,7 +91,9 @@ Dialog {
 
                         value: false
                         label: qsTranslate("RDM","Use system proxy settings")
-                        description: qsTranslate("RDM","Application restart is needed to apply this setting.")
+                        description: qsTranslate("RDM","Application will be restarted to apply this setting.")
+
+                        onValueChanged: root.restartRequired = true
                     }
 
                     SettingsGroupTitle {
@@ -139,16 +150,19 @@ Dialog {
                     }
 
                     SettingsGroupTitle {
-                        text: qsTranslate("RDM","Custom Value View Formatters")
+                        visible: !PlatformUtils.isOSX()
+                        text: qsTranslate("RDM","External Value View Formatters")
                     }
 
                     Text {
+                        visible: !PlatformUtils.isOSX()
                         text: qsTranslate("RDM","Formatters path: %0").arg(formattersManager.formattersPath())
                         font.pixelSize: 12
                         color: "grey"
                     }
 
                     TableView {
+                        visible: !PlatformUtils.isOSX()
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         verticalScrollBarPolicy: Qt.ScrollBarAlwaysOn
@@ -186,7 +200,15 @@ Dialog {
                         Item { Layout.fillWidth: true; }
                         Button {
                             text: qsTranslate("RDM","OK")
-                            onClicked: root.close()
+                            onClicked: {
+                                if (root.restartRequired) {
+                                    // restart app
+                                    Qt.exit(1000)
+                                }
+
+                                restartRequired = false
+                                root.close()
+                            }
                         }
                     }
                 }

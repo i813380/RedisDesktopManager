@@ -1,6 +1,5 @@
 <RCC>
-    <qresource prefix="/images">
-        <file alias="redisBigIcon.png">images/redis_big_icon.png</file>
+    <qresource prefix="/images">        
         <file alias="logo.png">images/logo.png</file>
         <file alias="twi.svg">images/twi.svg</file>
         <file alias="github.svg">images/github.svg</file>
@@ -15,10 +14,10 @@
         <file alias="alert.svg">images/alert.svg</file>
         <file alias="add.svg">images/add.svg</file>
         <file alias="import.svg">images/import.svg</file>
+        <file alias="execute.svg">images/execute.svg</file>
         <file alias="export.svg">images/export.svg</file>
         <file alias="editdb.svg">images/editdb.svg</file>
-        <file alias="delete.svg">images/delete.svg</file>
-        <file alias="rdm.ico">redis.ico</file>
+        <file alias="delete.svg">images/delete.svg</file>        
         <file alias="ua.svg">images/ua.svg</file>
         <file alias="filter.svg">images/filter.svg</file>
         <file alias="ga.png">images/ga.png</file>
@@ -35,6 +34,12 @@
         <file alias="cluster.svg">images/cluster.svg</file>
         <file alias="sentinel.svg">images/sentinel.svg</file>
         <file alias="cleanup.svg">images/cleanup.svg</file>
+        <file alias="cleanup_filtered.svg">images/cleanup_filtered.svg</file>
         <file alias="telegram.svg">images/telegram.svg</file>
+        <file alias="memory_usage.svg">images/memory_usage.svg</file>
+        <file alias="bulk_operations.svg">images/bulk_operations.svg</file>
+        <file alias="back.svg">images/back.svg</file>
+        <file alias="ttl.svg">images/ttl.svg</file>
+        <file alias="db_copy.svg">images/db_copy.svg</file>
     </qresource>
 </RCC>

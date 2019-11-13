@@ -4,47 +4,51 @@
 #
 #-------------------------------------------------
 
-QT += core gui network concurrent widgets quick quickwidgets charts
+QT += core gui network concurrent widgets quick quickwidgets charts svg
 
 TARGET = rdm
 TEMPLATE = app
 
 # Skip version file
 !exists( $$PWD/version.h ) {    
-    DEFINES += RDM_VERSION=\\\"2019.0.0\\\"
+    DEFINES += RDM_VERSION=\\\"2019.5.0\\\"
 }
 
 SOURCES += \
     $$PWD/main.cpp \
     $$PWD/app/app.cpp \
+    $$PWD/app/apputils.cpp \
     $$PWD/app/events.cpp \
     $$PWD/app/qmlutils.cpp \
+    $$PWD/app/qcompress.cpp \
     $$PWD/app/models/*.cpp \
     $$PWD/app/models/key-models/*.cpp \
     $$PWD/modules/connections-tree/*.cpp \
     $$PWD/modules/connections-tree/items/*.cpp \
     $$PWD/modules/console/*.cpp \
-    $$PWD/modules/value-editor/*.cpp \
-    $$PWD/modules/crashhandler/*.cpp \
+    $$PWD/modules/value-editor/*.cpp \    
     $$PWD/modules/updater/*.cpp \
     $$PWD/modules/bulk-operations/*.cpp \
+    $$PWD/modules/bulk-operations/operations/*.cpp \
     $$PWD/modules/common/*.cpp \
     $$PWD/modules/server-stats/*.cpp \
 
 HEADERS  += \
     $$PWD/app/app.h \
-    $$PWD/app/events.h \    
+    $$PWD/app/events.h \
+    $$PWD/app/apputils.h \
     $$PWD/app/qmlutils.h \
+    $$PWD/app/qcompress.h \
     $$PWD/app/models/*.h \
     $$PWD/app/models/key-models/*.h \
     $$PWD/modules/connections-tree/*.h \
     $$PWD/modules/connections-tree/items/*.h \
     $$PWD/modules/console/*.h \
-    $$PWD/modules/value-editor/*.h \
-    $$PWD/modules/crashhandler/*.h \
+    $$PWD/modules/value-editor/*.h \    
     $$PWD/modules/updater/*.h \
     $$PWD/modules/*.h \
     $$PWD/modules/bulk-operations/*.h \
+    $$PWD/modules/bulk-operations/operations/*.h \
     $$PWD/modules/common/*.h \
     $$PWD/modules/server-stats/*.h \
 
@@ -56,19 +60,26 @@ THIRDPARTYDIR = $$PWD/../3rdparty/
 
 include($$THIRDPARTYDIR/3rdparty.pri)
 
+exists( $$PWD/modules/crashpad/crashpad.pri ) {
+    message("Build with Crashpad")
+    include($$PWD/modules/crashpad/crashpad.pri)
+}
+
 win32 {
     CONFIG += c++11
-    RC_FILE += $$PWD/resources/rdm.rc
 
-    win32-msvc* {
-        QMAKE_LFLAGS += /LARGEADDRESSAWARE
-    }
+    RC_ICONS = $$PWD/resources/images/logo.ico
+    QMAKE_TARGET_COMPANY = redisdesktop.com
+    QMAKE_TARGET_PRODUCT = RedisDesktopManager
+    QMAKE_TARGET_DESCRIPTION = "Open source GUI management tool for Redis"
+    QMAKE_TARGET_COPYRIGHT = "Igor Malinovskiy (C) 2013-2019"
 
     release: DESTDIR = ./../bin/windows/release
     debug:   DESTDIR = ./../bin/windows/debug
 }
 
 unix:macx { # OSX
+    TARGET = "Redis Desktop Manager"
     QT += svg
     CONFIG += c++11
 
@@ -80,12 +91,6 @@ unix:macx { # OSX
     #deployment
     QMAKE_INFO_PLIST =  $$PWD/resources/Info.plist
     ICON = $$PWD/resources/rdm.icns
-
-    release {
-        CRASHREPORTER_APP.files = $$DESTDIR/crashreporter
-        CRASHREPORTER_APP.path = Contents/MacOS
-        QMAKE_BUNDLE_DATA += CRASHREPORTER_APP
-    }
 }
 
 unix:!macx { # ubuntu & debian
@@ -115,9 +120,9 @@ unix:!macx { # ubuntu & debian
     data.path = $$LINUX_INSTALL_PATH/lib
     data.files = $$PWD/lib/*
     INSTALLS += data
-
+    
     appicon.path = /usr/share/pixmaps/
-    appicon.files = $$PWD/resources/rdm.png
+    appicon.files = $$PWD/resources/images/rdm.png
     INSTALLS += appicon
 
     deskicon.path = /usr/share/applications
@@ -138,6 +143,7 @@ RESOURCES += \
     $$PWD/resources/images.qrc \
     $$PWD/resources/fonts.qrc \    
     $$PWD/qml/qml.qrc \
+    $$PWD/py/py.qrc \
     $$PWD/resources/commands.qrc
 
 exists( $$PWD/resources/translations/rdm.qm ) {
@@ -170,5 +176,6 @@ TRANSLATIONS = \
     $$PWD/resources/translations/rdm_zh_TW.ts \
     $$PWD/resources/translations/rdm_ru_RU.ts \
     $$PWD/resources/translations/rdm_es_ES.ts \
+    $$PWD/resources/translations/rdm_ja_JP.ts \
 
 CODECFORSRC = UTF-8

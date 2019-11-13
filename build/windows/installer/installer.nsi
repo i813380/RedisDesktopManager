@@ -9,6 +9,7 @@ RequestExecutionLevel admin
 
 SetCompress force
 SetCompressor /SOLID /FINAL lzma
+ManifestDPIAware true
 
 # General Symbol Definitions
 !define REGKEY "SOFTWARE\$(Name)"
@@ -17,10 +18,10 @@ SetCompressor /SOLID /FINAL lzma
 !define APP_EXE "rdm.exe"
 
 # MUI Symbol Definitions
-!define MUI_ICON "..\..\..\src\resources\redis.ico"
+!define MUI_ICON "..\..\..\src\resources\images\logo.ico"
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 !define MUI_FINISHPAGE_RUN $INSTDIR\${APP_EXE}
-!define MUI_UNICON "..\..\..\src\resources\redis.ico"
+!define MUI_UNICON "..\..\..\src\resources\images\logo.ico"
 !define MUI_WELCOMEFINISHPAGE_BITMAP ".\images\main.bmp"
 
 # Included files
@@ -69,12 +70,12 @@ Section -Main SEC0000
     ${nsProcess::KillProcess} "${APP_EXE}" $R4
 
     ${IfNot} ${RunningX64}
-        MessageBox MB_OK "Starting from 2019.0.0 version RDM doesn't support 32-bit Windows"
+        MessageBox MB_OK "Starting from version 2019.0.0, Redis Desktop Manager doesn't support 32-bit Windows"
         Quit
     ${EndIf}
 
-    IfFileExists $INSTDIR\uninstall.exe alredy_installed not_installed
-    alredy_installed:
+    IfFileExists $INSTDIR\uninstall.exe already_installed not_installed
+    already_installed:
     ExecWait '$INSTDIR\uninstall.exe /S'
     Sleep 3000
 
@@ -125,13 +126,17 @@ done${UNSECTION_ID}:
 
 # Uninstaller sections
 Section /o -un.Main UNSEC0000
+    ${nsProcess::KillProcess} "${APP_EXE}" $R4
+    Sleep 1000
     Delete /REBOOTOK $INSTDIR\*
-    Delete /REBOOTOK $INSTDIR\platforms\*
+    RmDir /REBOOTOK /r $INSTDIR\*
     DeleteRegValue HKLM "${REGKEY}\Components" Main
 SectionEnd
 
 Section -un.post UNSEC0001
     DeleteRegKey HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)"
+    Delete /REBOOTOK "$DESKTOP\RedisDesktopManager.lnk"
+    Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\RedisDesktopManager.lnk"
     Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\$(^UninstallLink).lnk"
     Delete /REBOOTOK $INSTDIR\uninstall.exe
     DeleteRegValue HKLM "${REGKEY}" Path

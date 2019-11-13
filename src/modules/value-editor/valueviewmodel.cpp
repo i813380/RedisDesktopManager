@@ -9,12 +9,17 @@ ValueEditor::ValueViewModel::ValueViewModel(QSharedPointer<Model> model)
     : BaseListModel(),
       m_model(model),
       m_startFramePosition(0),
-      m_lastLoadedRowFrameSize(0) {}
+      m_lastLoadedRowFrameSize(0),
+      m_singlePageMode(false) {}
 
 int ValueEditor::ValueViewModel::rowCount(const QModelIndex& parent) const {
   Q_UNUSED(parent);
 
-  return m_lastLoadedRowFrameSize;
+  if (m_singlePageMode) {
+    return m_model->rowsCount();
+  } else {
+    return m_lastLoadedRowFrameSize;
+  }
 }
 
 QVariant ValueEditor::ValueViewModel::data(const QModelIndex& index,
@@ -99,6 +104,16 @@ void ValueEditor::ValueViewModel::reload() {
   });
 }
 
+void ValueEditor::ValueViewModel::setSinglePageMode(bool v) {
+  m_singlePageMode = v;
+  emit singlePageModeChanged();
+}
+
+bool ValueEditor::ValueViewModel::singlePageMode() const
+{
+    return m_singlePageMode;
+}
+
 bool ValueEditor::ValueViewModel::isRowLoaded(int i) {
   return m_model->isRowLoaded(i);
 }
@@ -108,7 +123,7 @@ void ValueEditor::ValueViewModel::loadRows(int start, int limit) {
   int loaded = (rowsLeft > limit) ? limit : rowsLeft;
 
   // frame already loaded
-  if (m_model->isRowLoaded(start)) {
+  if (m_model->isRowLoaded(start) && m_model->isRowLoaded(start + loaded - 1)) {
     m_startFramePosition = start;
     m_lastLoadedRowFrameSize = loaded;
 
@@ -120,21 +135,19 @@ void ValueEditor::ValueViewModel::loadRows(int start, int limit) {
 
   QString msg = QCoreApplication::translate("RDM", "Cannot load key value: %1");
 
-  // NOTE(u_glide): Do so for proper rendering of QML table
-  m_lastLoadedRowFrameSize = totalRowCount() - start;
   m_model->loadRows(
       start, limit,
-      [this, start, msg](const QString& err, unsigned long rowsCount) {
+      [this, start, limit, msg](const QString& err, unsigned long rowsCount) {
         if (!err.isEmpty()) {
           emit error(msg.arg(err));
           return;
         }
 
-        m_lastLoadedRowFrameSize = rowsCount;
+        m_lastLoadedRowFrameSize = rowsCount > limit ? limit : rowsCount;
         m_startFramePosition = start;
 
         emit layoutAboutToBeChanged();
-        emit rowsLoaded(start, rowsCount);
+        emit rowsLoaded(start, m_lastLoadedRowFrameSize);
         emit layoutChanged();
       });
 }

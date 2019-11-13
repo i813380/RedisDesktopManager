@@ -60,20 +60,11 @@ var json = {
     title: "JSON",
 
     getFormatted: function (raw, callback) {
-        try {
-            return callback("", JSONFormatter.prettyPrint(String(raw)), false, FORMAT_JSON)
-        } catch (e) {
-            return callback(qsTranslate("RDM", "Invalid JSON: ") + e)
-        }
+        console.error("Call JSON worker script")
     },
 
     isValid: function (raw, callback) {
-        try {
-            JSONFormatter.prettyPrint(String(raw))
-            return callback(true)
-        } catch (e) {
-            return callback(false)
-        }
+        console.error("Call JSON worker script")
     },
 
     getRaw: function (formatted, callback) {
@@ -96,6 +87,37 @@ function buildFormattersModel()
     for (var index in enabledFormatters) {
         var f = enabledFormatters[index]
         formatters.push({'name': f.title, 'type': "buildin", "instance": f})
+    }   
+
+
+    function createWrapperForEmbeddedFormatter(formatterName) {
+        return {
+            getFormatted: function (raw, callback) {
+                return embeddedFormattersManager.decode(formatterName, raw, function (response) {
+                    return callback(response[0], response[1], response[2], response[3])
+                })
+            },
+
+            getRaw: function (formatted, callback) {
+                return embeddedFormattersManager.encode(formatterName, formatted, function (response) {
+                    return callback(response[0], response[1])
+                })
+            },
+
+            isValid: function (raw, callback) {
+                return embeddedFormattersManager.isValid(formatterName, raw, function (response) {
+                    return callback(response[0])
+                })
+            }
+        }
+    }
+
+    for (var indx in approot.embeddedFormatters) {
+        formatters.push({
+                   'name': approot.embeddedFormatters[indx],
+                   'type': "embedded",
+                   'instance': createWrapperForEmbeddedFormatter(approot.embeddedFormatters[indx])
+               })
     }
 
     var nativeFormatters = formattersManager.getPlainList();
@@ -114,7 +136,7 @@ function buildFormattersModel()
                 return formattersManager.isValid(formatterName, raw, callback)
             }
         }
-    }
+    }       
 
     for (var index in nativeFormatters) {
         formatters.push({
@@ -149,10 +171,6 @@ function getFormatterIndex(name) {
 function guessFormatter(isBinary)
 {
     if (isBinary) {
-        if (formattersManager.isInstalled("python-decompresser")) {
-            return [getFormatterIndex("python-decompresser"), 2]
-        }
-
         return 2
     } else {
         return 0

@@ -5,6 +5,7 @@
 #include <QString>
 #include <QtConcurrent>
 
+#include "memoryusage.h"
 #include "treeitem.h"
 
 namespace ConnectionsTree {
@@ -13,15 +14,17 @@ class Operations;
 class AbstractNamespaceItem;
 class Model;
 
-class AbstractNamespaceItem : public TreeItem {    
+class AbstractNamespaceItem : public TreeItem, public MemoryUsage {
  public:
   AbstractNamespaceItem(Model& model, QWeakPointer<TreeItem> parent,
                         QSharedPointer<Operations> operations, uint dbIndex,
-                        QRegExp filter=QRegExp());
+                        QRegExp filter = QRegExp());
 
   virtual ~AbstractNamespaceItem() {}
 
   QList<QSharedPointer<TreeItem>> getAllChilds() const override;
+
+  QList<QSharedPointer<AbstractNamespaceItem>> getAllChildNamespaces() const;
 
   uint childCount(bool recursive = false) const override;
 
@@ -48,10 +51,6 @@ class AbstractNamespaceItem : public TreeItem {
 
   virtual void notifyModel();
 
-  virtual QByteArray getName() const = 0;
-
-  virtual QByteArray getFullPath() const = 0;
-
   virtual bool isExpanded() const override { return m_expanded; }
 
   virtual void setExpanded(bool v) { m_expanded = v; }
@@ -64,8 +63,17 @@ class AbstractNamespaceItem : public TreeItem {
 
   virtual void showLoadingError(const QString& err);
 
- protected:  
+  void cancelCurrentOperation() override;
+
+  QFuture<qlonglong> getMemoryUsage(
+      QSharedPointer<AsyncFuture::Combinator> combinator) override;
+
+ protected:
   virtual void clear();
+
+  void sortChilds();
+
+  QHash<QString, std::function<void()>> eventHandlers() override;
 
  protected:
   QWeakPointer<TreeItem> m_parent;
@@ -75,5 +83,6 @@ class AbstractNamespaceItem : public TreeItem {
   QRegExp m_filter;
   bool m_expanded;
   uint m_dbIndex;
+  QSharedPointer<AsyncFuture::Combinator> m_combinator;
 };
 }  // namespace ConnectionsTree

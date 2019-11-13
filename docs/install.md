@@ -2,89 +2,62 @@
 
 ## Windows
 
-1. Install [Microsoft Visual C++ 2015](https://download.microsoft.com/download/9/3/F/93FCF1E7-E6A4-478B-96E7-D4B285925B00/vc_redist.x86.exe)  (If you have not already)
-2. Download Windows Installer from [http://redisdesktop.com/download](http://redisdesktop.com/download) **(Requires subscription)**
-3. Run downloaded installer
+1. Install [Microsoft Visual C++ 2017 x64](https://aka.ms/vs/15/release/vc_redist.x64.exe)  (If you have not already).
+2. Download Windows Installer from [http://redisdesktop.com/download](http://redisdesktop.com/download). **(Requires subscription)**
+3. Run the downloaded installer.
 
 ## Mac OS X
 
-1. Download dmg image from [http://redisdesktop.com/download](http://redisdesktop.com/download) **(Requires subscription)**
-2. Mount dmg image
-3. Run rdm.app
+1. Download dmg image from [http://redisdesktop.com/download](http://redisdesktop.com/download). **(Requires subscription)**
+2. Mount the DMG image.
+3. Run rdm.app.
 
-## Ubuntu / Debian / Fedora / CentOS / OpenSUSE / Other Linux
+## Ubuntu / ArchLinux / Debian / Fedora / CentOS / OpenSUSE / etc
 
-1. Install RedisDesktopManager using [Snapcraft](https://snapcraft.io/redis-desktop-manager)
+1. Install RedisDesktopManager using [Snapcraft](https://snapcraft.io/redis-desktop-manager).
 
-## ArchLinux
-
-1. Install RedisDesktopManager via [AUR](https://aur.archlinux.org/packages/redis-desktop-manager/)
-
-## Other platforms
-
-You can [build Redis Desktop Manager from source](install.md#build-from-source).
+> !!! warning "SSH Keys"
+    To be able to access your ssh keys from RDM please connect `ssh-key` interface:
+    `sudo snap connect redis-desktop-manager:ssh-keys`
+    
+> !!! tip "How to Run"
+    If RDM icon hasn't appeared in your application launcher you can run RDM from terminal `/snap/bin/redis-desktop-manager.rdm`
 
 ## Build from source
 
 ### Get source
 
-1. Install git
-2. Get source code:
-
+1. Install git using the instructions here: https://git-scm.com/download
+    
+2. Get the source code:
     ```
     git clone --recursive https://github.com/uglide/RedisDesktopManager.git -b 2019 rdm && cd ./rdm
     ```
 
 > !!! warning "SSH Tunneling support"
-    Since 0.9.9 RDM by default does not include SSH Tunneling support. If you need it please checkout 0.9.8 tag,
-    i.e. `git checkout 0.9.8`. Or you can create a SSH tunnel to your Redis server manually and connect to `localhost`:
-    `ssh -L 6379:REDIS_HOST:6379 SSH_USER@SSH_HOST -P SSH_PORT -i SSH_KEY -T -N`
+    Since 0.9.9 RDM by default does not include SSH Tunneling support. You can create a SSH tunnel to your Redis server manually and connect to `localhost`:
+    `ssh -L 6379:REDIS_HOST:6379 SSH_USER@SSH_HOST -P SSH_PORT -i SSH_KEY -T -N` or [use pre-built binary for your OS](#quick-install)
 
-### Build on Linux
-
-#### Ubuntu
-
-```
-cd src/
-./configure
-qmake && make && sudo make install
-cd /opt/redis-desktop-manager/
-sudo mv qt.conf qt.backup
-```
-
-#### Fedora & CentOS & OpenSUSE
-
-```
-cd src/
-./configure
-qmake-qt5 && make && sudo make install
-cd /usr/share/redis-desktop-manager/bin
-sudo mv qt.conf qt.backup
-```
-
-> !!! tip "Tip: checkinstall"
-    Instead of `sudo make install` consider to use `sudo checkinstall -D --install` on **deb**-based OS and `sudo checkinstall -R --install` on **rpm**-based OS to generate package and install it into the system.
 
 ### Build on OS X
 
-1. Install [XCode](https://developer.apple.com/xcode/) with Xcode build tools
-2. Install [Homebrew](http://brew.sh/)
-3. Copy `cd ./src && cp ./resources/Info.plist.sample ./resources/Info.plist`
-4. Building RDM dependencies require i.a. openssl and cmake. Install them: `brew install openssl cmake`
-5. Build RDM dependencies `./configure`
+1. Install [Xcode](https://developer.apple.com/xcode/) with Xcode build tools.
+2. Install [Homebrew](http://brew.sh/).
+3. Copy `cd ./src && cp ./resources/Info.plist.sample ./resources/Info.plist`.
+4. Building RDM dependencies require i.a. `openssl`, `cmake` and `python3`. Install them: `brew install openssl cmake python3`
+5. Install Python requirements `pip3 install -t ../bin/osx/release -r py/requirements.txt`
 6. Install [Qt 5.9](http://www.qt.io/download-open-source/#section-2). Add Qt Creator and under Qt 5.9.x add Qt Charts module.
-7. Open ./src/rdm.pro in Qt Creator
-8. Run build
+7. Open `./src/rdm.pro` in **Qt Creator**.
+8. Run build. 
 
 ### Build on Windows
 
-1. Install Visual Studio 2015 Community with Updates
-
-2. Install [Qt 5.9](https://www.qt.io/download)
-
-3. Go to `3rdparty/qredisclient/3rdparty/hiredis` and apply patch to fix compilation on Windows:
+1. Install Visual Studio 2017 Community Edition.
+2. Install [Qt 5.9](https://www.qt.io/download).
+3. Go to `3rdparty/qredisclient/3rdparty/hiredis` and apply the patch to fix compilation on Windows:
 `git apply ../hiredis-win.patch`
-
-4. Open `./src/rdm.pro` in **Qt Creator**.  Chooses `Desktop Qt 5.9.6 MSVC2015 32bit > Release` profile.
-
-5. Run build. ( Just hit `Ctrl-B` )
+4. Go to the `3rdparty/` folder and install zlib with `nuget`: `nuget install zlib-msvc14-x64 -Version 1.2.11.7795`
+5. Install Python 3.7 amd64 to `C:\Python37-x64`.
+6. Install Python requirements `pip3 install -r src/py/requirements.txt`.
+7. Open `./src/rdm.pro` in **Qt Creator**.  Choose the `Desktop Qt 5.9.x MSVC2017 64bit > Release` build profile.
+8. Run build. (Just hit `Ctrl-B`)

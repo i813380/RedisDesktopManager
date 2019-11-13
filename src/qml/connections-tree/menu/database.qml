@@ -4,6 +4,7 @@ import QtQuick.Controls 1.4
 import QtQuick.Window 2.2
 import "./../../common/platformutils.js" as PlatformUtils
 import "."
+import "./../../common/"
 
 RowLayout {
     id: root
@@ -16,11 +17,19 @@ RowLayout {
         State {
             name: "menu"
             PropertyChanges { target: dbMenu; visible: true;}
+            PropertyChanges { target: bulkMenu; visible: false;}
+            PropertyChanges { target: filterMenu; visible: false;}            
+        },
+        State {
+            name: "bulk_menu"
+            PropertyChanges { target: dbMenu; visible: false;}
+            PropertyChanges { target: bulkMenu; visible: true;}
             PropertyChanges { target: filterMenu; visible: false;}
         },
         State {
             name: "filter"
             PropertyChanges { target: dbMenu; visible: false;}
+            PropertyChanges { target: bulkMenu; visible: false;}
             PropertyChanges { target: filterMenu; visible: true;}
         }
     ]
@@ -46,37 +55,87 @@ RowLayout {
                 } else {
                     connectionsManager.setMetadata(styleData.index, "live_update", true)
                 }
-            }
+            },
+            "bulk_menu": function() {
+                root.state = "bulk_menu"
+            },
         }
 
-        model: [
-            {
-                'icon': "qrc:/images/filter.svg", 'callback': 'filter', "help": qsTranslate("RDM","Open Keys Filter"),
-                "shortcut": PlatformUtils.isOSX()? "Meta+F" : "Ctrl+F",
+        model: {
+            if (styleData.value["locked"] === true) {
+                return [
+                            {
+                                'icon': "qrc:/images/offline.svg", 'event': 'cancel', "help": qsTranslate("RDM","Disconnect"),
+                            },
+                        ]
+            } else {
+                return [
+                            {
+                                'icon': "qrc:/images/filter.svg", 'callback': 'filter', "help": qsTranslate("RDM","Open Keys Filter"),
+                                "shortcut": PlatformUtils.isOSX()? "Meta+F" : "Ctrl+F",
+                            },
+                            {
+                                'icon': "qrc:/images/refresh.svg", 'event': 'reload', "help": qsTranslate("RDM","Reload Keys in Database"),
+                                "shortcut": PlatformUtils.isOSX()? "Meta+R" : "Ctrl+R",
+                            },
+                            {
+                                'icon': "qrc:/images/add.svg", 'event': 'add_key', "help": qsTranslate("RDM","Add New Key"),
+                                "shortcut": PlatformUtils.isOSX()? "Meta+N" : "Ctrl+N",
+                            },
+                            {
+                                'icon': styleData.value["live_update"]? "qrc:/images/live_update_disable.svg" : "qrc:/images/live_update.svg",
+                                'callback': 'live_update',
+                                "help": styleData.value["live_update"]? qsTranslate("RDM","Disable Live Update") : qsTranslate("RDM","Enable Live Update"),
+                                "shortcut": PlatformUtils.isOSX()? "Meta+L" : "Ctrl+L",
+                            },
+                            {
+                                'icon': "qrc:/images/console.svg", 'event': 'console', "help": qsTranslate("RDM","Open Console"),
+                                "shortcut": Qt.platform.os == "osx"? "Meta+T" : "Ctrl+T",
+                            },
+                            {'icon': "qrc:/images/memory_usage.svg", "event": "analyze_memory_usage", "help": qsTranslate("RDM","Analyze Used Memory")},
+                            {
+                                'icon': "qrc:/images/bulk_operations.svg", 'callback': 'bulk_menu', "help": qsTranslate("RDM","Bulk Operations"),
+                            },
+                        ]
+            }
+        }
+    }
+
+    InlineMenu {
+        id: bulkMenu
+
+        Layout.fillWidth: true
+
+        callbacks: {
+            "db_menu": function() {
+                root.state = "menu"
             },
-            {
-                'icon': "qrc:/images/refresh.svg", 'event': 'reload', "help": qsTranslate("RDM","Reload Keys in Database"),
-                "shortcut": PlatformUtils.isOSX()? "Meta+R" : "Ctrl+R",
-            },
-            {
-                'icon': "qrc:/images/add.svg", 'event': 'add_key', "help": qsTranslate("RDM","Add New Key"),
-                "shortcut": PlatformUtils.isOSX()? "Meta+N" : "Ctrl+N",
-            },
-            {
-                'icon': styleData.value["live_update"]? "qrc:/images/live_update_disable.svg" : "qrc:/images/live_update.svg",
-                'callback': 'live_update',
-                "help": styleData.value["live_update"]? qsTranslate("RDM","Disable Live Update") : qsTranslate("RDM","Enable Live Update"),
-                "shortcut": PlatformUtils.isOSX()? "Meta+L" : "Ctrl+L",
-            },
-            {
-                'icon': "qrc:/images/console.svg", 'event': 'console', "help": qsTranslate("RDM","Open Console"),
-                "shortcut": Qt.platform.os == "osx"? "Meta+T" : "Ctrl+T",
-            },
-            {
-                'icon': "qrc:/images/cleanup.svg", 'event': 'flush', "help": qsTranslate("RDM","Flush Database"),
-                "shortcut": PlatformUtils.isOSX()? "Meta+Del" : "Ctrl+Del",
-            },
-        ]
+        }
+
+        model: {
+            return [
+                        {
+                            'icon': "qrc:/images/cleanup.svg", 'event': 'flush', "help": qsTranslate("RDM","Flush Database"),                            
+                        },
+                        {
+                            'icon': "qrc:/images/cleanup_filtered.svg", 'event': 'delete_keys', "help": qsTranslate("RDM","Delete keys with filter"),
+                        },
+                        {
+                            'icon': "qrc:/images/ttl.svg", 'event': 'ttl', "help": qsTranslate("RDM","Set TTL for multiple keys"),
+                        },
+                        {
+                            'icon': "qrc:/images/db_copy.svg", 'event': 'copy_keys', "help": qsTranslate("RDM","Copy keys from this database to another"),
+                        },
+                        {
+                            'icon': "qrc:/images/import.svg", 'event': 'rdb_import', "help": qsTranslate("RDM","Import keys from RDB file"),
+                        },
+                        {
+                            'icon': "qrc:/images/back.svg", 'callback': 'db_menu', "help": qsTranslate("RDM","Back"),
+                        },
+
+                    ]
+        }
+
     }
 
     RowLayout {
@@ -102,7 +161,7 @@ RowLayout {
             }
         }
 
-        ToolButton {
+        ImageButton {
             id: filterOk
             iconSource: "qrc:/images/ok.svg"
             objectName: "rdm_inline_menu_button_apply_filter"
@@ -118,14 +177,20 @@ RowLayout {
             }
         }
 
-        ToolButton {
+        ImageButton {
             id: filterHelp
+
+            imgWidth: PlatformUtils.isOSXRetina(Screen)? 20 : 25
+            imgHeight: PlatformUtils.isOSXRetina(Screen)? 20 : 25
             iconSource: "qrc:/images/help.svg"
             onClicked: Qt.openUrlExternally("http://docs.redisdesktop.com/en/latest/features/#search-in-connection-tree")
         }
 
-        ToolButton {
+        ImageButton {
             id: filterCancel
+
+            imgWidth: PlatformUtils.isOSXRetina(Screen)? 20 : 25
+            imgHeight: PlatformUtils.isOSXRetina(Screen)? 20 : 25
             iconSource: "qrc:/images/clear.svg"
             objectName: "rdm_inline_menu_button_reset_filter"
 

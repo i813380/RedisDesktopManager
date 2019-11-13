@@ -1,0 +1,6 @@
+bitstring
+cbor
+msgpack
+phpserialize
+rdbtools
+python-lzf

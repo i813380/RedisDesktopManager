@@ -27,6 +27,7 @@ ApplicationWindow {
     property double hRatio : (height * 1.0) / (Screen.height * 1.0)
 
     property var currentValueFormatter
+    property var embeddedFormatters
 
     Component.onCompleted: {
         if (hRatio > 1 || wRatio > 1) {
@@ -38,12 +39,15 @@ ApplicationWindow {
         if (PlatformUtils.isOSXRetina(Screen)) {
             bottomTabView.implicitHeight = 100
         }
+
+        embeddedFormattersManager.loadFormatters(function (result) {
+            approot.embeddedFormatters = result
+            console.log("Embedded formatters:", result);
+        });
     }
 
     Settings {
         category: "windows_settings"
-        property alias x: approot.x
-        property alias y: approot.y
         property alias width: approot.width
         property alias height: approot.height
     }
@@ -268,7 +272,7 @@ ApplicationWindow {
             BetterTabView {
                 id: bottomTabView
                 Layout.fillWidth: true
-                Layout.minimumHeight: PlatformUtils.isOSXRetina()? 15 : 30
+                Layout.minimumHeight: PlatformUtils.isOSXRetina(Screen)? 15 : 30
 
                 tabPosition: Qt.BottomEdge
 
@@ -310,6 +314,10 @@ ApplicationWindow {
                             Connections {
                                 target: appEvents
                                 onLog: {
+                                    if (logModel.count > 1500) {
+                                        logModel.remove(0, logModel.count - 1000)
+                                    }
+
                                     logModel.append({"msg": msg})
                                     logListView.positionViewAtEnd()
                                 }

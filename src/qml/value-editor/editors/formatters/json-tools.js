@@ -1,3 +1,5 @@
+.pragma library
+
 /*
     Based on:
     json-format v.1.1
@@ -84,12 +86,11 @@ var prettyPrint = function( json ) {
             }
             return '<font color="' + colorMap[type] + '">' + match + '</font>';
         });
-    }
+    }   
 
     var highlighted = syntaxHighlight(out);
 
-//    return out;
-    return '<pre id="value">' + highlighted + '</pre>';
+    return '<pre id="value" style="width:97%; white-space: pre-wrap;">' + highlighted + '</pre>';
 };
 
 
@@ -122,3 +123,13 @@ var minify =  function(json) {
                 .replace(/\]\s{0,},\s{0,}\[/g,'],[');
 };
 
+
+WorkerScript.onMessage = function(msg) {
+    WorkerScript.sendMessage({
+        'error': "",
+         // NOTE(u_glide): Minify json before processing to get rid of double formatted JSON
+        'formatted': prettyPrint(minify(String(msg))),
+        'isReadOnly': false,
+        'format': "html"
+    });
+}

@@ -8,6 +8,7 @@
 #include "rejsonkey.h"
 #include "setkey.h"
 #include "sortedsetkey.h"
+#include "stream.h"
 #include "stringkey.h"
 
 KeyFactory::KeyFactory() {}
@@ -42,32 +43,32 @@ void KeyFactory::loadKey(
       return;
     }
 
-    RedisClient::Response ttlResult;
+    auto parseTtl = [this, type, connection, keyFullPath, dbIndex,
+                     callback](const RedisClient::Response& ttlResult) {
+      long long ttl = -1;
 
-    try {
-      ttlResult = connection->commandSync({"ttl", keyFullPath}, dbIndex);
-    } catch (const RedisClient::Connection::Exception& e) {
+      if (ttlResult.type() == RedisClient::Response::Integer) {
+        ttl = ttlResult.value().toLongLong();
+      }
+
+      auto result = createModel(type, connection, keyFullPath, dbIndex, ttl);
+
+      if (!result)
+        return callback(result, QCoreApplication::translate(
+                                    "RDM", "Unsupported Redis Data type %1")
+                                    .arg(type));
+
+      callback(result, QString());
+    };
+
+    auto processTtlError = [callback, result, keyFullPath](const QString& err) {
       QString msg(QCoreApplication::translate(
           "RDM", "Cannot load TTL for key %1, connection error occurred: %2"));
-      callback(result,
-               msg.arg(printableString(keyFullPath)).arg(QString(e.what())));
-      return;
-    }
+      callback(result, msg.arg(printableString(keyFullPath)).arg(err));
+    };
 
-    long long ttl = -1;
-
-    if (ttlResult.type() == RedisClient::Response::Integer) {
-      ttl = ttlResult.value().toLongLong();
-    }
-
-    result = createModel(type, connection, keyFullPath, dbIndex, ttl);
-
-    if (!result)
-      return callback(result, QCoreApplication::translate(
-                                  "RDM", "Unsupported Redis Data type %1")
-                                  .arg(type));
-
-    callback(result, QString());
+    connection->cmd({"ttl", keyFullPath}, this, dbIndex, parseTtl,
+                    processTtlError);
   };
 
   RedisClient::Command typeCmd({"type", keyFullPath}, this, loadModel, dbIndex);
@@ -90,20 +91,20 @@ void KeyFactory::createNewKeyRequest(
   emit newKeyDialog(NewKeyRequest(connection, dbIndex, callback, keyPrefix));
 }
 
-void KeyFactory::submitNewKeyRequest(NewKeyRequest r, QJSValue jsCallback) {
+void KeyFactory::submitNewKeyRequest(NewKeyRequest r) {
   QSharedPointer<ValueEditor::Model> result = createModel(
       r.keyType(), r.connection(), r.keyName().toUtf8(), r.dbIndex(), -1);
 
   if (!result) return;
 
-  result->addRow(r.value(), [r, &jsCallback](const QString& err) {
+  result->addRow(r.value(), [this, r, result](const QString& err) {
     if (err.size() > 0) {
-      if (jsCallback.isCallable()) jsCallback.call(QJSValueList{err});
+      emit error(err);
       return;
     }
 
-    if (jsCallback.isCallable()) jsCallback.call(QJSValueList{});
     r.callback();
+    emit keyAdded();
   });
 }
 
@@ -128,6 +129,9 @@ QSharedPointer<ValueEditor::Model> KeyFactory::createModel(
   } else if (type == "ReJSON-RL") {
     return QSharedPointer<ValueEditor::Model>(
         new ReJSONKeyModel(connection, keyFullPath, dbIndex, ttl));
+  } else if (type == "stream") {
+    return QSharedPointer<ValueEditor::Model>(
+        new StreamKeyModel(connection, keyFullPath, dbIndex, ttl));
   }
 
   return QSharedPointer<ValueEditor::Model>();

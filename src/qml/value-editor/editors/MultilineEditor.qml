@@ -18,13 +18,15 @@ ColumnLayout
     property bool isEdited: false
     property var value
     property int valueSizeLimit: 150000
-    property string formatterSettingsCategory: "formatters_value"
+    property int valueCompression: 0
+    property string formatterSettingsCategory: "formatters_value"    
+    property alias readOnly: textView.readOnly
 
     function initEmpty() {
         // init editor with empty model
         textView.model = qmlUtils.wrapLargeText("")
         textView.readOnly = false
-        textView.textFormat = TextEdit.PlainText
+        textView.textFormat = TextEdit.PlainText            
     }
 
     function validationRule(raw)
@@ -45,23 +47,46 @@ ColumnLayout
             if (valid) {
                 hideValidationError()
             } else {
-                showValidationError("Enter value")
+                showValidationError(qsTranslate("RDM", "Enter valid value"))
             }
 
             return callback(valid)
         });
     }
 
-    function loadRawValue(callback) {
-        if (formatterSelector.visible) {
-           var formatter = formatterSelector.model[formatterSelector.currentIndex]
-
-            formatter.instance.getRaw(textView.model.getText(), function (error, raw) {
-                root.value = raw
-                return callback(error, raw)
-            })
+    function compress(val) {
+        if (valueCompression > 0) {
+            return qmlUtils.compress(val, valueCompression)
         } else {
-            root.value = textView.model.getText()
+            return val
+        }
+    }
+
+    function loadRawValue(callback) {                
+        if (formatterSelector.visible) {
+
+            function process(formattedValue) {
+                var formatter = formatterSelector.model[formatterSelector.currentIndex]
+
+                 formatter.instance.getRaw(formattedValue, function (error, raw) {
+                     root.value = compress(raw)
+                     return callback(error, compress(raw))
+                 })
+            }
+
+            if (textView.format === "json") {
+                Formatters.json.getRaw(textView.model.getText(), function (jsonError, plainText) {
+                    if (jsonError) {
+                        return callback(jsonError, "")
+                    }
+
+                    process(plainText)
+                })
+            } else {
+                process(textView.model.getText())
+            }
+        } else {
+            root.value = compress(textView.model.getText())
             return callback("", root.value)
         }
     }
@@ -71,7 +96,12 @@ ColumnLayout
 
         if (val) {
             root.value = val
-            guessFormatter = true
+
+            if (defaultFormatterSettings.defaultFormatterIndex === 0) {
+                guessFormatter = true
+            } else {
+                formatterSelector.currentIndex = defaultFormatterSettings.defaultFormatterIndex
+            }
         }
 
         if (!root.value) {
@@ -82,6 +112,7 @@ ColumnLayout
         if (qmlUtils.binaryStringLength(root.value) > valueSizeLimit) {
             root.showFormatters = false
             formatterSelector.currentIndex = 0
+            guessFormatter = false
         } else {
             root.showFormatters = true
         }
@@ -89,8 +120,15 @@ ColumnLayout
         var isBin = qmlUtils.isBinaryString(root.value)
         binaryFlag.visible = isBin
 
+        valueCompression = qmlUtils.isCompressed(root.value)
+
+        if (valueCompression > 0) {
+            root.value = qmlUtils.decompress(root.value)
+            isBin = qmlUtils.isBinaryString(root.value)
+        }
+
         // If current formatter is plain text - try to guess formatter
-        if (guessFormatter && formatterSelector.currentIndex == 0) {
+        if (guessFormatter && formatterSelector.currentIndex === 0) {
             _guessFormatter(isBin, function() {
                 _loadFormatter(isBin)
             })
@@ -137,24 +175,24 @@ ColumnLayout
 
         uiBlocker.visible = true
 
-        formatter.instance.getFormatted(root.value, function (error, formatted, isReadOnly, format) {
+        if (formatter['name'] === 'JSON') {
+            jsonFormattingWorker.sendMessage(String(root.value))
+        } else {
+            formatter.instance.getFormatted(root.value, function (error, formatted, isReadOnly, format) {
 
-            if (error || !formatted) {
-                uiBlocker.visible = false
-                formatterSelector.currentIndex = isBin? 2 : 0 // Reset formatter to plain text
-                notification.showError(error || qsTranslate("RDM","Unknown formatter error (Empty response)"))
-                return
-            }
+                function process(error, formatted, stub, format) {
+                    jsonFormattingWorker.processFormatted(error, formatted, stub, format)
+                }
 
-            textView.textFormat = (format === "json" || format === "html")
-                ? TextEdit.RichText
-                : TextEdit.PlainText;
+                textView.format = format
 
-            textView.model = qmlUtils.wrapLargeText(formatted)
-            textView.readOnly = isReadOnly
-            root.isEdited = false
-            uiBlocker.visible = false
-        })
+                if (format === "json") {
+                    jsonFormattingWorker.sendMessage(String(formatted))
+                } else {
+                    process(error, formatted, isReadOnly, format);
+                }
+            })
+        }
     }
 
     function reset() {
@@ -168,6 +206,7 @@ ColumnLayout
         textView.model = null
         root.value = ""
         root.isEdited = false
+        root.valueCompression = 0
         hideValidationError()
     }
 
@@ -180,6 +219,36 @@ ColumnLayout
         validationError.visible = false
     }
 
+    WorkerScript {
+        id: jsonFormattingWorker
+
+        source: "./formatters/json-tools.js"
+        onMessage: {
+            textView.format = messageObject.format
+            processFormatted(messageObject.error, messageObject.formatted, messageObject.isReadOnly, messageObject.format);
+        }
+
+        function processFormatted(error, formatted, isReadOnly, format) {
+            if (error || !formatted) {
+                uiBlocker.visible = false
+                formatterSelector.currentIndex = isBin? 2 : 0 // Reset formatter to plain text
+                notification.showError(error || qsTranslate("RDM","Unknown formatter error (Empty response)"))
+                return
+            }
+
+            textView.textFormat = (format === "html")
+                ? TextEdit.RichText
+                : TextEdit.PlainText;
+
+            defaultFormatterSettings.defaultFormatterIndex = formatterSelector.currentIndex
+            textView.model = qmlUtils.wrapLargeText(formatted)
+            textView.readOnly = isReadOnly
+            root.isEdited = false
+            uiBlocker.visible = false
+        }
+    }
+
+
     RowLayout{
         Layout.fillWidth: true
 
@@ -191,7 +260,8 @@ ColumnLayout
             selectByMouse: true
             color: "#ccc"
         }
-        Text { id: binaryFlag; text: qsTranslate("RDM","[Binary]"); visible: false; color: "green"; }
+        Text { id: binaryFlag; text: qsTranslate("RDM","[Binary]"); visible: false; color: "green"; }        
+        Text { text: qsTranslate("RDM"," [Compressed: ") + qmlUtils.compressionAlgName(root.valueCompression) + "]"; visible: root.valueCompression > 0; color: "red"; }
         Item { Layout.fillWidth: true }
 
         ImageButton {
@@ -207,6 +277,12 @@ ColumnLayout
 
         Text { visible: showFormatters; text: qsTranslate("RDM","View as:") }
 
+        Settings {
+            id: defaultFormatterSettings
+            category: formatterSettingsCategory
+            property int defaultFormatterIndex
+        }
+
         ComboBox {
             id: formatterSelector
             visible: showFormatters
@@ -215,12 +291,9 @@ ColumnLayout
             textRole: "name"
             objectName: "rdm_value_editor_formatter_combobox"
 
-            onCurrentIndexChanged: loadFormattedValue()
-
-            Settings {
-                id: defaultFormatterSettings
-                category: formatterSettingsCategory
-                property alias defaultFormatterIndex: formatterSelector.currentIndex
+            onActivated: {
+                currentIndex = index
+                loadFormattedValue()
             }
         }
 
@@ -241,6 +314,8 @@ ColumnLayout
             anchors.fill: parent
             anchors.margins: 5
 
+            verticalScrollBarPolicy: Qt.ScrollBarAlwaysOn
+
             ListView {
                 id: textView
                 anchors.fill: parent
@@ -248,23 +323,29 @@ ColumnLayout
 
                 property int textFormat: TextEdit.PlainText
                 property bool readOnly: false
+                property string format
 
                 delegate:
-                    NewTextArea {
-                        id: textAreaPart
-                        objectName: "rdm_key_multiline_text_field_" + index
-                        width: textView.width
+                    Item {
+                        width: texteditorWrapper.width
                         height: textAreaPart.contentHeight < texteditorWrapper.height? texteditorWrapper.height - 5 : textAreaPart.contentHeight
 
-                        enabled: root.enabled
-                        text: value
+                        NewTextArea {
+                            anchors.fill: parent
+                            id: textAreaPart
+                            objectName: "rdm_key_multiline_text_field_" + index
 
-                        textFormat: textView.textFormat
-                        readOnly: textView.readOnly
 
-                        onTextChanged: {
-                            root.isEdited = true
-                            textView.model && textView.model.setTextChunk(index, textAreaPart.text)
+                            enabled: root.enabled
+                            text: value
+
+                            textFormat: textView.textFormat
+                            readOnly: textView.readOnly
+
+                            Keys.onReleased: {
+                                root.isEdited = true
+                                textView.model && textView.model.setTextChunk(index, textAreaPart.text)
+                            }
                         }
                     }
                 }

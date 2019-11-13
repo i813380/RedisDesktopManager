@@ -9,7 +9,7 @@ import "./common/platformutils.js" as PlatformUtils
 
 Dialog {
     id: root    
-    title: isNewConnection ? qsTranslate("RDM","New Connection Settings") : qsTranslate("RDM","Edit Connection Settings") + settings.name
+    title: isNewConnection ? qsTranslate("RDM","New Connection Settings") : qsTranslate("RDM","Edit Connection Settings") + " " + settings.name
 
     modality: Qt.ApplicationModal
 
@@ -119,19 +119,12 @@ Dialog {
     TextField { id: validStyleDisabled; visible: false; enabled: false}
 
     contentItem: Item {
-        implicitWidth: 600
-        implicitHeight: PlatformUtils.isOSX()? 650 : approot.height
+        implicitWidth: 800
+        implicitHeight: 650
 
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 5
-
-            Loader {
-                id: newsLoader
-                source: "https://redisdesktop.com/qml/ConnectionSuggestions.qml?app_version="
-                        + Qt.application.version + "&platform=" + Qt.platform.os
-                        + "&new=" + root.isNewConnection
-            }
 
             TabView {
                 id: settingsTabs
@@ -146,14 +139,14 @@ Dialog {
 
                     ScrollView {
                         id: mainSettingsScrollView
-                        width: settingsTabs.width - 20
+                        width:  settingsTabs.width - 20
                         height: settingsTabs.height
 
-                        ColumnLayout {                                                        
-                            width: mainSettingsScrollView.width
-                            height: children.height
+                        horizontalScrollBarPolicy: Qt.ScrollBarAlwaysOff
 
-                            SettingsGroupTitle { text: qsTranslate("RDM","Main Settings") }
+                        ColumnLayout {                                                        
+                            width: mainSettingsScrollView.width - 25
+                            height: children.height
 
                             GridLayout {
                                 columns: 2
@@ -202,15 +195,10 @@ Dialog {
                                 columns: 2
 
                                 BetterRadioButton {
-                                    text: qsTranslate("RDM","None")
-                                    checked: root.settings ? !root.settings.sslEnabled && !root.settings.useSshTunnel() : true
-                                    Layout.columnSpan: 2
-                                }
-
-                                BetterRadioButton {
                                     id: sslRadioButton
                                     Layout.columnSpan: 2
                                     text: qsTranslate("RDM","SSL")
+                                    allowUncheck: true
                                     checked: root.settings ? root.settings.sslEnabled && !root.sshEnabled : false
                                     Component.onCompleted: root.sslEnabled = Qt.binding(function() { return sslRadioButton.checked })
                                     onCheckedChanged: {
@@ -274,6 +262,7 @@ Dialog {
                                     objectName: "rdm_connection_security_ssh_radio_button"
                                     Layout.columnSpan: 2
                                     text: qsTranslate("RDM","SSH Tunnel")
+                                    allowUncheck: true
                                     checked: root.settings ? root.settings.useSshTunnel() : false
                                     Component.onCompleted: root.sshEnabled = Qt.binding(function() { return sshRadioButton.checked })
                                     onCheckedChanged: {
@@ -487,6 +476,20 @@ Dialog {
                                 Layout.fillWidth: true
                                 checked: root.settings ? root.settings.overrideClusterHost : false
                                 onCheckedChanged: root.settings.overrideClusterHost = checked
+                            }
+
+                            SettingsGroupTitle {
+                                text: qsTranslate("RDM","TLS")
+                                Layout.columnSpan: 2
+                            }
+
+                            Label { text: qsTranslate("RDM","Ignore all SSL/TLS errors (<b>dangerous</b>):")}
+
+                            BetterCheckbox {
+                                id: ignoreSSLErrors
+                                Layout.fillWidth: true
+                                checked: root.settings ? root.settings.ignoreSSLErrors : false
+                                onCheckedChanged: root.settings.ignoreSSLErrors = checked
                             }
 
                             Item {

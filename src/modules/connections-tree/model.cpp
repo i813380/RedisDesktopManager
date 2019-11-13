@@ -4,6 +4,7 @@
 #include <QWeakPointer>
 #include <algorithm>
 #include "items/serveritem.h"
+#include "items/databaseitem.h"
 
 using namespace ConnectionsTree;
 
@@ -16,6 +17,11 @@ Model::Model(QObject *parent)
   QObject::connect(this, &Model::itemChildsUnloaded, this,
                    &Model::onItemChildsUnloaded);
   QObject::connect(this, &Model::expandItem, this, &Model::onExpandItem);
+
+  QObject::connect(this, &Model::beforeItemLayoutChanged, this,
+                   &Model::onBeforeItemLayoutChanged);
+  QObject::connect(this, &Model::itemLayoutChanged, this,
+                   &Model::onItemLayoutChanged);
 
   qRegisterMetaType<QWeakPointer<TreeItem>>("QWeakPointer<TreeItem>");
 }
@@ -179,14 +185,12 @@ void Model::onItemChildsLoaded(QWeakPointer<TreeItem> item) {
     emit expand(index);
 
     QSettings settings;
-    if (settings.value("app/reopenNamespacesOnReload", true).toBool()) {
-      restoreOpenedNamespaces(index);
-    } else {
-      qDebug() << "Namespace reopening is disabled in settings";
-      m_expanded.clear();
+    m_expanded.clear();
+
+    if (settings.value("app/reopenNamespacesOnReload", true).toBool()) {     
+      restoreOpenedNamespaces(treeItem.staticCast<AbstractNamespaceItem>());
     }
-  } else if (treeItem->type() == "server" ||
-             treeItem->type() == "namespace") {
+  } else if (treeItem->type() == "server" || treeItem->type() == "namespace") {
     emit expand(index);
     emit dataChanged(index, index);
   }
@@ -211,6 +215,55 @@ void Model::onExpandItem(QWeakPointer<TreeItem> item) {
   if (!index.isValid()) return;
 
   emit expand(index);
+}
+
+void Model::onBeforeItemLayoutChanged(QWeakPointer<TreeItem> item) {
+  if (!item) return;
+
+  auto itemS = item.toStrongRef();
+
+  auto index = getIndexFromItem(item);
+
+  if (!index.isValid()) return;
+
+  emit layoutAboutToBeChanged({index}, QAbstractItemModel::VerticalSortHint);
+
+  m_pendingChanges.clear();
+
+  for (long rowIndex = 0; rowIndex < itemS->childCount(); rowIndex++) {
+    auto child = itemS->child(rowIndex);
+    m_pendingChanges.insert(child, getIndexFromItem(child));
+  }
+}
+
+void Model::onItemLayoutChanged(QWeakPointer<TreeItem> item) {
+  if (!item) return;
+
+  auto itemS = item.toStrongRef();
+
+  auto index = getIndexFromItem(item);
+
+  if (!index.isValid()) return;
+
+  for (long rowIndex = 0; rowIndex < itemS->childCount(); rowIndex++) {
+    auto child = itemS->child(rowIndex);
+
+    if (!m_pendingChanges.contains(child)) continue;
+
+    changePersistentIndex(m_pendingChanges.take(child),
+                          getIndexFromItem(child));
+  }
+
+  m_pendingChanges.clear();
+
+  emit layoutChanged({}, QAbstractItemModel::VerticalSortHint);
+
+  for (long rowIndex = 0; rowIndex < itemS->childCount(); rowIndex++) {
+    auto child = itemS->child(rowIndex);
+    auto childIndex = getIndexFromItem(child);
+
+    emit dataChanged(childIndex, childIndex);
+  }
 }
 
 QVariant Model::getMetadata(const QModelIndex &index, const QString &metaKey) {
@@ -281,13 +334,17 @@ void Model::removeRootItem(QSharedPointer<ServerItem> item) {
   endRemoveRows();
 }
 
-void Model::restoreOpenedNamespaces(const QModelIndex &dbIndex) {
-  m_expanded.clear();
+void Model::restoreOpenedNamespaces(QSharedPointer<AbstractNamespaceItem> ns)
+{
+    if (ns->type() == "namespace" && !ns->isExpanded())
+        return;
 
-  QModelIndex searchFrom = index(0, 0, dbIndex);
-  QModelIndexList matches =
-      match(searchFrom, itemIsInitiallyExpanded, true, -1,
-            Qt::MatchFixedString | Qt::MatchCaseSensitive | Qt::MatchRecursive);
+    if (ns->isExpanded())
+        emit expand(getIndexFromItem(ns.staticCast<TreeItem>().toWeakRef()));
 
-  foreach (QModelIndex i, matches) { emit expand(i); }
+    auto childs = ns->getAllChildNamespaces();
+
+    for (auto childNs : childs) {
+        restoreOpenedNamespaces(childNs);
+    }
 }

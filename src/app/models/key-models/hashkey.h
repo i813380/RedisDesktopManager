@@ -16,8 +16,8 @@ class HashKeyModel : public KeyModel<QPair<QByteArray, QByteArray>> {
   void removeRow(int, Callback) override;
 
  protected:
-  void addLoadedRowsToCache(const QVariantList &list,
-                            QVariant rowStart) override;
+  int addLoadedRowsToCache(const QVariantList &list,
+                           QVariant rowStart) override;
 
  private:
   enum Roles { RowNumber = Qt::UserRole + 1, Key, Value };

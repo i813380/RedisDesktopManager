@@ -17,6 +17,7 @@ namespace ConnectionsTree {
 class KeyItem;
 class NamespaceItem;
 class AbstractNamespaceItem;
+class DatabaseItem;
 
 class Operations {
   ADD_EXCEPTION
@@ -25,7 +26,7 @@ class Operations {
    * List of databases with keys counters
    * @emit databesesLoaded
    **/
-  virtual QFuture<bool> getDatabases(std::function<void(QMap<int, int>)>) = 0;
+  virtual QFuture<void> getDatabases(std::function<void(QMap<int, int>)>) = 0;
 
   /**
    * @brief loadNamespaceItems
@@ -43,6 +44,12 @@ class Operations {
    * @brief disconnect
    */
   virtual void disconnect() = 0;
+
+  /**
+    Cancel all operations & reconnect
+   * @brief resetConnection
+   */
+  virtual void resetConnection() = 0;
 
   /**
    * @brief getNamespaceSeparator
@@ -68,14 +75,31 @@ class Operations {
   virtual void deleteDbKey(ConnectionsTree::KeyItem& key,
                            std::function<void(const QString&)> callback) = 0;
 
+  virtual void deleteDbKeys(ConnectionsTree::DatabaseItem& db) = 0;
+
   virtual void deleteDbNamespace(ConnectionsTree::NamespaceItem& ns) = 0;
+
+  virtual void setTTL(ConnectionsTree::AbstractNamespaceItem& ns) = 0;
+
+  virtual void copyKeys(ConnectionsTree::AbstractNamespaceItem& ns) = 0;
+
+  virtual void importKeysFromRdb(ConnectionsTree::DatabaseItem& ns) = 0;
 
   virtual void flushDb(int dbIndex,
                        std::function<void(const QString&)> callback) = 0;
 
+  virtual void openKeyIfExists(const QByteArray& key,
+                               QSharedPointer<ConnectionsTree::DatabaseItem> parent,
+                               std::function<void(const QString&, bool)> callback) = 0;
+
   virtual QString mode() = 0;
 
   virtual bool isConnected() const = 0;
+
+  virtual QFuture<bool> connectionSupportsMemoryOperations() = 0;
+
+  virtual QFuture<qlonglong> getUsedMemory(const QByteArray& key,
+                                           int dbIndex) = 0;
 
   virtual ~Operations() {}
 };
